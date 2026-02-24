@@ -52,7 +52,7 @@ export default function ReferAndEarn() {
 
       <div className="max-w-2xl mx-auto px-5 mt-2 space-y-6">
         {/* Banner Section */}
-        <div className="bg-gradient-to-r from-[#E23744] to-[#f15e6a] rounded-[24px] p-7 text-white shadow-xl relative overflow-hidden">
+        <div className="bg-gradient-to-r from-[#E07832] to-[#F2994A] rounded-[24px] p-7 text-white shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-4 -mt-4 opacity-10">
             <Gift size={140} strokeWidth={1} />
           </div>
@@ -66,12 +66,12 @@ export default function ReferAndEarn() {
         <div className="bg-white dark:bg-[#1a1a1a] rounded-[24px] p-8 shadow-md shadow-gray-100 dark:shadow-none border border-gray-50 dark:border-gray-800 text-center">
           <p className="text-gray-400 dark:text-gray-500 text-[11px] font-black mb-4 uppercase tracking-[2px]">Your Referral Code</p>
           <div className="flex items-center justify-center gap-4 bg-gray-50/50 dark:bg-gray-900 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-2xl p-5 mb-8">
-            <span className="text-2xl font-black text-[#E23744] tracking-[3px] ml-6">{referralCode}</span>
+            <span className="text-2xl font-black text-[#E07832] tracking-[3px] ml-6">{referralCode}</span>
             <button 
               onClick={handleCopy}
-              className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all active:scale-90"
+              className="p-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all active:scale-90"
             >
-              <Copy className={`h-6 w-6 ${copied ? "text-green-500" : "text-blue-500"}`} strokeWidth={2.5} />
+              <Copy className={`h-6 w-6 ${copied ? "text-green-500" : "text-[#E07832]"}`} strokeWidth={2.5} />
             </button>
           </div>
 
@@ -101,7 +101,7 @@ export default function ReferAndEarn() {
             <StatItem icon={Users} color="blue" label="Invited" value="6" />
             <StatItem icon={CheckCircle} color="green" label="Completed" value="3" />
             <StatItem icon={Clock} color="orange" label="Pending" value="3" />
-            <StatItem icon={Smartphone} color="red" label="Earned" value="300" />
+            <StatItem icon={Smartphone} color="theme" label="Earned" value="300" />
           </div>
         </div>
 
@@ -138,6 +138,7 @@ function StatItem({ icon: Icon, color, label, value }) {
     green: "bg-green-50 text-green-500",
     orange: "bg-orange-50 text-orange-500",
     red: "bg-red-50 text-red-500",
+    theme: "bg-orange-50 text-[#E07832]",
   }
   return (
     <div className="text-center space-y-2">

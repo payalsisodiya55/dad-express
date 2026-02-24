@@ -96,7 +96,8 @@ console.error = (...args) => {
     (args[0].includes('chrome-extension://') ||
      args[0].includes('_$initialUrl') ||
      args[0].includes('_$onReInit') ||
-     args[0].includes('_$bindListeners'))
+     args[0].includes('_$bindListeners') ||
+     args[0].includes('Could not establish connection'))
   ) {
     return // Suppress browser extension errors
   }
@@ -205,7 +206,8 @@ window.addEventListener('unhandledrejection', (event) => {
     errorMsg.includes('permission denied') ||
     errorName === 'GeolocationPositionError' ||
     (error?.code === 3 && errorMsg.includes('timeout')) ||
-    (error?.code === 1 && (errorMsg.includes('location') || errorMsg.includes('geolocation')))
+    (error?.code === 1 && (errorMsg.includes('location') || errorMsg.includes('geolocation'))) ||
+    errorMsg.includes('Could not establish connection')
   ) {
     event.preventDefault() // Prevent error from showing in console
     return

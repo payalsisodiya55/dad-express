@@ -24,13 +24,13 @@ export default function MyRewards() {
 
       <div className="max-w-2xl mx-auto px-5 mt-2">
         {/* Balance Card */}
-        <div className="bg-[#E23744] rounded-[24px] p-8 text-white shadow-lg relative overflow-hidden mb-6">
+        <div className="bg-gradient-to-r from-[#E07832] to-[#F2994A] rounded-[24px] p-8 text-white shadow-lg relative overflow-hidden mb-6">
           <div className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 opacity-10">
             <Gift size={140} strokeWidth={1} />
           </div>
           <p className="text-white/80 text-[11px] font-bold uppercase tracking-[1px] mb-1">TOTAL BALANCE</p>
           <div className="flex items-center gap-2 mb-6">
-            <span className="text-5xl font-bold tracking-tight">{rewardBalance}</span>
+            <span className="text-5xl font-black tracking-tight">{rewardBalance}</span>
             <span className="text-xl font-bold mt-2 opacity-90">Coins</span>
           </div>
           
@@ -46,11 +46,11 @@ export default function MyRewards() {
             className="bg-white dark:bg-[#1a1a1a] p-5 rounded-[20px] border border-slate-100 dark:border-gray-800 flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm active:scale-95 transition-all" 
             onClick={() => navigate('/user/profile/refer')}
           >
-            <TrendingUp size={22} className="text-blue-500" strokeWidth={2.5} />
+            <TrendingUp size={22} className="text-[#E07832]" strokeWidth={2.5} />
             <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">Refer & Earn</span>
           </div>
           <div className="bg-white dark:bg-[#1a1a1a] p-5 rounded-[20px] border border-slate-100 dark:border-gray-800 flex flex-col items-center justify-center gap-3 shadow-sm">
-            <Gift size={22} className="text-[#A855F7]" strokeWidth={2.5} />
+            <Gift size={22} className="text-[#E07832]" strokeWidth={2.5} />
             <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase tracking-wider">Redeem</span>
           </div>
         </div>

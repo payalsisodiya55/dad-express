@@ -19,10 +19,11 @@ const TEST_PHONE_NUMBERS = [
   '7691810506',
   '9009925021',
   '6375095971',
+  '9993911855',
 ];
 
 // Default OTP for test phone numbers
-const DEFAULT_TEST_OTP = '110211';
+const DEFAULT_TEST_OTP = '123456';
 
 /**
  * Extract phone number digits (without country code)

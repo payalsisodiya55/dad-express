@@ -19,7 +19,10 @@ import Lenis from "lenis";
 
 export default function ReferAndEarn() {
   const navigate = useNavigate();
-  const [referralCode] = useState("REST68739"); // Mock referral code
+  
+  // Get restaurant data from localStorage
+  const restaurantUser = JSON.parse(localStorage.getItem("restaurant_user") || "{}");
+  const [referralCode] = useState(restaurantUser.referralCode || "REST68739");
   const [copied, setCopied] = useState(false);
 
   // Lenis smooth scrolling

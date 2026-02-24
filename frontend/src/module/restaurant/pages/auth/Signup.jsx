@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Phone, User, AlertCircle, Loader2, UtensilsCrossed, Gift, CheckCircle2 } from "lucide-react"
 import { restaurantAPI } from "@/lib/api"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
@@ -42,12 +42,24 @@ const countryCodes = [
 
 export default function RestaurantSignup() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { companyName } = useCompanyName()
+
   const [formData, setFormData] = useState({
     phone: "",
     countryCode: "+91",
     name: "",
     referralCode: "",
   })
+
+  // Capture referral code from URL
+  useEffect(() => {
+    const ref = searchParams.get("ref")
+    if (ref) {
+      setFormData(prev => ({ ...prev, referralCode: ref.toUpperCase() }))
+    }
+  }, [searchParams])
+
   const [errors, setErrors] = useState({
     phone: "",
     name: "",

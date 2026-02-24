@@ -362,7 +362,7 @@ export default function PointOfSale() {
                       setSearchQuery(`${selected.name} (${selected.restaurantId || selected._id})`)
                     }
                   }}
-                        className="w-full h-11 rounded-md border border-[#e3e6ef] bg-white px-3 pr-10 text-sm text-[#4a5671] focus:outline-none focus:ring-1 focus:ring-[#006fbd]"
+                        className="w-full h-11 rounded-md border border-[#e3e6ef] bg-white px-3 pr-10 text-sm text-[#4a5671] focus:outline-none focus:ring-1 focus:ring-[#006fbd] appearance-none"
                       >
                   <option value="">Select Restaurant</option>
                   {restaurants.map(restaurant => (

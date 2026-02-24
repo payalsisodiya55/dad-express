@@ -34,6 +34,7 @@ const carouselData = [
 
 export default function RestaurantWelcome() {
   const navigate = useNavigate()
+  const companyName = useCompanyName()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [direction, setDirection] = useState(0) // 1 for next, -1 for previous
   const [touchStart, setTouchStart] = useState(null)
@@ -288,7 +289,7 @@ export default function RestaurantWelcome() {
         {/* Login Button */}
         <Button
           onClick={handleLogin}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 md:py-7 text-base md:text-lg rounded-lg transition-colors shadow-lg"
+          className="w-full bg-[#E07832] hover:bg-[#D46B28] text-white font-bold py-6 md:py-7 text-base md:text-lg rounded-lg transition-colors shadow-lg"
         >
           Login
         </Button>
@@ -302,15 +303,6 @@ export default function RestaurantWelcome() {
           Partner with Appzeto
         </Button> */}
 
-        {/* Terms and Conditions */}
-        <div className="text-center mt-2">
-          <p className="text-white/70 text-xs md:text-sm">
-            By continuing, you agree to our
-          </p>
-          <p className="text-white/70 text-xs md:text-sm underline mt-1">
-            Terms of Service | Privacy Policy | Code of Conduct
-          </p>
-        </div>
       </div>
     </div>
   )

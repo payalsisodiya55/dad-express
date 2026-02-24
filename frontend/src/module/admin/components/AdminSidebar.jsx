@@ -528,7 +528,7 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
       `}</style>
       <div
         className={cn(
-          "admin-sidebar-scroll bg-neutral-950 border-r border-neutral-800/60 h-screen fixed left-0 top-0 overflow-y-auto z-50",
+          "bg-neutral-950 border-r border-neutral-800/60 h-screen fixed left-0 top-0 overflow-hidden z-50 flex flex-col",
           "transform transition-all duration-300 ease-in-out",
           "lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
@@ -540,12 +540,12 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           <div className="flex items-center justify-between mb-3">
             {!isCollapsed && (
               <div className="flex items-center gap-2 animate-[slideIn_0.3s_ease-out]">
-                <div className="w-24 h-12 rounded-lg flex items-center justify-center shadow-black/20">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-black/20 bg-white p-2 overflow-hidden ring-1 ring-neutral-800/10">
                   {logoUrl ? (
                     <img
                       src={logoUrl}
                       alt={companyName || "Company"}
-                      className="w-24 h-10 object-contain"
+                      className="w-10 h-10 object-contain"
                       loading="lazy"
                       onError={(e) => {
                         // Hide image if it fails to load
@@ -557,14 +557,14 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
                       {companyName}
                     </span>
                   ) : (
-                    <img src={quickSpicyLogo} alt={companyName || "Company"} className="w-24 h-10 object-contain" loading="lazy" />
+                    <img src={quickSpicyLogo} alt={companyName || "Company"} className="w-10 h-10 object-contain" loading="lazy" />
                   )}
                 </div>
               </div>
             )}
             {isCollapsed && (
               <div className="w-full flex items-center justify-center">
-                <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shadow-lg shadow-black/20 ring-1 ring-white/10">
+                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg shadow-black/20 ring-1 ring-white/10 p-2 overflow-hidden">
                   {logoUrl ? (
                     <img
                       src={logoUrl}
@@ -643,47 +643,49 @@ export default function AdminSidebar({ isOpen = false, onClose, onCollapseChange
           )}
         </div>
 
-        {/* Navigation Menu */}
-        <nav className="px-3 py-3 space-y-2">
-          {filteredMenuData.length === 0 && searchQuery.trim() ? (
-            <div className="px-3 py-12 text-left animate-[fadeIn_0.4s_ease-out]">
-              <p className="text-neutral-300 text-sm font-medium text-left">No menu items found</p>
-              <p className="text-neutral-500 text-sm mt-2 text-left">Try a different search term</p>
-            </div>
-          ) : (
-            filteredMenuData.map((item, index) => {
-              if (item.type === "link") {
-                return renderMenuItem(item, index)
-              }
+        {/* Navigation Menu - Scrollable Part */}
+        <div className="flex-1 overflow-y-auto admin-sidebar-scroll">
+          <nav className="px-3 py-3 space-y-2">
+            {filteredMenuData.length === 0 && searchQuery.trim() ? (
+              <div className="px-3 py-12 text-left animate-[fadeIn_0.4s_ease-out]">
+                <p className="text-neutral-300 text-sm font-medium text-left">No menu items found</p>
+                <p className="text-neutral-500 text-sm mt-2 text-left">Try a different search term</p>
+              </div>
+            ) : (
+              filteredMenuData.map((item, index) => {
+                if (item.type === "link") {
+                  return renderMenuItem(item, index)
+                }
 
-              if (item.type === "section") {
-                return (
-                  <div
-                    key={index}
-                    className={cn(
-                      index > 0 ? "mt-4 pt-4 border-t border-neutral-800/60" : "",
-                      "animate-[fadeIn_0.4s_ease-out]"
-                    )}
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    {!isCollapsed && (
-                      <div className="px-3 py-2 mb-2">
-                        <span className="text-neutral-400 font-bold text-sm uppercase tracking-wider text-left">
-                          {item.label}
-                        </span>
+                if (item.type === "section") {
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        index > 0 ? "mt-4 pt-4 border-t border-neutral-800/60" : "",
+                        "animate-[fadeIn_0.4s_ease-out]"
+                      )}
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    >
+                      {!isCollapsed && (
+                        <div className="px-3 py-2 mb-2">
+                          <span className="text-neutral-400 font-bold text-sm uppercase tracking-wider text-left">
+                            {item.label}
+                          </span>
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        {item.items.map((subItem, subIndex) => renderMenuItem(subItem, `${index}-${subIndex}`, true))}
                       </div>
-                    )}
-                    <div className="space-y-1">
-                      {item.items.map((subItem, subIndex) => renderMenuItem(subItem, `${index}-${subIndex}`, true))}
                     </div>
-                  </div>
-                )
-              }
+                  )
+                }
 
-              return null
-            })
-          )}
-        </nav>
+                return null
+              })
+            )}
+          </nav>
+        </div>
       </div>
     </>
   )
