@@ -1276,7 +1276,7 @@ export default function Home() {
       </div>
 
       {/* Hero Banner Section - Moved Below Search */}
-      <div className={`relative w-full overflow-hidden mt-2 md:mt-4 mb-6 transition-all duration-300 ${(!loadingBanners && heroBannerImages.length === 0) ? 'h-0 mb-0' : 'h-[180px] sm:h-[200px] md:h-[50vh] lg:h-[60vh]'}`}>
+      <div className={`relative w-full overflow-hidden mt-2 md:mt-4 mb-6 transition-all duration-300 ${(!loadingBanners && heroBannerImages.length === 0) ? 'h-0 mb-0' : 'h-[220px] sm:h-[240px] md:h-[50vh] lg:h-[60vh]'}`}>
         {loadingBanners ? (
           <div className="absolute top-0 left-0 right-0 bottom-0 z-0 bg-gray-100 dark:bg-gray-900 flex items-center justify-center mx-3 sm:mx-4 lg:mx-8 rounded-xl sm:rounded-2xl">
             <div className="text-gray-500 text-center">
