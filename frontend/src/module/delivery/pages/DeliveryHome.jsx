@@ -432,6 +432,8 @@ export default function DeliveryHome() {
   const lastRiderPositionRef = useRef(null) // Last rider position for smooth animation
   const markerAnimationCancelRef = useRef(null) // Cancel function for marker animation
   const directionsResponseRef = useRef(null) // Store directions response for use in callbacks
+  const directionsRouteCacheRef = useRef(new Map()) // Cache Directions API results by origin/destination
+  const directionsInFlightRef = useRef(new Map()) // Deduplicate concurrent Directions API calls
   const fetchedOrderDetailsForDropRef = useRef(null) // Prevent re-fetching order details for Reached Drop customer coords
   const [zones, setZones] = useState([]) // Store nearby zones
   const [mapLoading, setMapLoading] = useState(false)
@@ -5549,8 +5551,27 @@ export default function DeliveryHome() {
   // NOTE: Must be defined BEFORE the useEffect that uses it (Rules of Hooks)
   const calculateRouteWithDirectionsAPI = useCallback(async (origin, destination) => {
     if (!window.google || !window.google.maps || !window.google.maps.DirectionsService) {
-      console.warn('⚠️ Google Maps Directions API not available');
+      console.warn('?????? Google Maps Directions API not available');
       return null;
+    }
+
+    const originLat = Number(Array.isArray(origin) ? origin[0] : origin?.lat);
+    const originLng = Number(Array.isArray(origin) ? origin[1] : origin?.lng);
+    const destinationLat = Number(destination?.lat);
+    const destinationLng = Number(destination?.lng);
+
+    if (!Number.isFinite(originLat) || !Number.isFinite(originLng) || !Number.isFinite(destinationLat) || !Number.isFinite(destinationLng)) {
+      return null;
+    }
+
+    const round4 = (value) => Math.round(value * 10000) / 10000;
+    const cacheKey = `${round4(originLat)},${round4(originLng)}|${round4(destinationLat)},${round4(destinationLng)}`;
+    const now = Date.now();
+    const cachedRoute = directionsRouteCacheRef.current.get(cacheKey);
+    if (cachedRoute && (now - cachedRoute.timestamp) < 300000) {
+      setDirectionsResponse(cachedRoute.result);
+      directionsResponseRef.current = cachedRoute.result;
+      return cachedRoute.result;
     }
 
     try {
@@ -5564,8 +5585,8 @@ export default function DeliveryHome() {
         return new Promise((resolve, reject) => {
           directionsServiceRef.current.route(
             {
-              origin: { lat: origin[0], lng: origin[1] },
-              destination: { lat: destination.lat, lng: destination.lng },
+              origin: { lat: originLat, lng: originLng },
+              destination: { lat: destinationLat, lng: destinationLng },
               travelMode: travelMode,
               provideRouteAlternatives: false, // Save API cost - don't get alternatives
               avoidHighways: false,
@@ -5583,6 +5604,10 @@ export default function DeliveryHome() {
                 });
                 setDirectionsResponse(result);
                 directionsResponseRef.current = result; // Store in ref for callbacks
+                directionsRouteCacheRef.current.set(cacheKey, {
+                  result,
+                  timestamp: Date.now()
+                });
                 resolve(result);
               } else {
                 // Handle specific error cases - suppress console errors for REQUEST_DENIED

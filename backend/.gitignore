@@ -1,5 +1,7 @@
 node_modules/
 .env
+config/serviceAccountKey.json
+config/*firebase-adminsdk*.json
 .DS_Store
 dist/
 build/

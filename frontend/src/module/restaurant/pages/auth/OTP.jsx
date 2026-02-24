@@ -17,6 +17,7 @@ export default function RestaurantOTP() {
   const [contactType, setContactType] = useState("phone") // "phone" or "email"
   const [focusedIndex, setFocusedIndex] = useState(null)
   const [name, setName] = useState("")
+  const [referralCode, setReferralCode] = useState("")
   const [nameError, setNameError] = useState("")
   const [showNameInput, setShowNameInput] = useState(false)
   const inputRefs = useRef([])
@@ -428,6 +429,21 @@ export default function RestaurantOTP() {
                   {nameError}
                 </p>
               )}
+
+              {/* Referral Code input */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Referral code (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={referralCode || ""}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="Enter referral code"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                  disabled={isLoading}
+                />
+              </div>
             </div>
           )}
 

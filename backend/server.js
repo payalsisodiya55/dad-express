@@ -9,9 +9,15 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cron from 'node-cron';
 import mongoose from 'mongoose';
+import { initializeFirebaseRealtime } from './config/firebaseRealtime.js';
+import { syncActiveOrderRealtime } from './modules/delivery/services/firebaseTrackingService.js';
+import { getFirebaseRealtimeDb, isFirebaseRealtimeAvailable } from './config/firebaseRealtime.js';
 
 // Load environment variables
 dotenv.config();
+
+// Initialize Firebase Realtime Database before routes/sockets start using it
+initializeFirebaseRealtime();
 
 // Import configurations
 import { connectDB } from './config/database.js';
@@ -446,6 +452,25 @@ app.use(errorHandler);
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
+  const getRealtimeRouteForTrackingIds = async (trackingIds = []) => {
+    if (!isFirebaseRealtimeAvailable()) return null;
+
+    try {
+      const db = getFirebaseRealtimeDb();
+      for (const trackingId of trackingIds) {
+        const snap = await db.ref(`active_orders/${trackingId}`).once('value');
+        const value = snap.val();
+        if (value?.polyline) {
+          return { orderId: trackingId, polyline: value.polyline };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.warn(`⚠️ Failed reading realtime route: ${error.message}`);
+      return null;
+    }
+  };
+
   const getTrackedOrderAndIds = async (rawOrderId) => {
     if (!rawOrderId) return { order: null, trackingIds: [] };
     const inputId = String(rawOrderId).trim();
@@ -509,6 +534,17 @@ io.on('connection', (socket) => {
       // Send to specific order room
       io.to(`order:${data.orderId}`).emit(`location-receive-${data.orderId}`, locationData);
 
+      // Keep active order location mirrored in Firebase Realtime Database
+      syncActiveOrderRealtime({
+        orderId: data.orderId,
+        boyId: data.deliveryId || null,
+        boyLat: data.lat,
+        boyLng: data.lng,
+        status: 'on_the_way'
+      }).catch((error) => {
+        console.warn(`⚠️ Failed Firebase active_orders sync for ${data.orderId}: ${error.message}`);
+      });
+
       console.log(`📍 Location broadcasted to order room ${data.orderId}:`, {
         lat: locationData.lat,
         lng: locationData.lng,
@@ -562,6 +598,16 @@ io.on('connection', (socket) => {
         });
         console.log(`Sent current location to customer for order ids: ${trackingIds.join(', ')}`);
       }
+
+      const realtimeRoute = await getRealtimeRouteForTrackingIds(trackingIds);
+      if (realtimeRoute?.polyline) {
+        trackingIds.forEach((trackingId) => {
+          socket.emit(`route-polyline-${trackingId}`, {
+            orderId: realtimeRoute.orderId,
+            polyline: realtimeRoute.polyline
+          });
+        });
+      }
     } catch (error) {
       console.error('Error sending current location:', error.message);
     }
@@ -589,6 +635,16 @@ io.on('connection', (socket) => {
           socket.emit(`current-location-${trackingId}`, locationData);
         });
         console.log(`Sent requested location for order ids: ${emitIds.join(', ')}`);
+      }
+
+      const realtimeRoute = await getRealtimeRouteForTrackingIds(trackingIds);
+      if (realtimeRoute?.polyline) {
+        (trackingIds.length ? trackingIds : [String(orderId)]).forEach((trackingId) => {
+          socket.emit(`route-polyline-${trackingId}`, {
+            orderId: realtimeRoute.orderId,
+            polyline: realtimeRoute.polyline
+          });
+        });
       }
     } catch (error) {
       console.error('Error fetching current location:', error.message);

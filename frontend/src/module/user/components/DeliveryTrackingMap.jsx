@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import { API_BASE_URL } from '@/lib/api/config';
 import bikeLogo from '@/assets/bikelogo.png';
 import { RouteBasedAnimationController } from '@/module/user/utils/routeBasedAnimation';
-import { extractPolylineFromDirections, findNearestPointOnPolyline } from '@/module/delivery/utils/liveTrackingPolyline';
+import { decodePolyline, extractPolylineFromDirections, findNearestPointOnPolyline } from '@/module/delivery/utils/liveTrackingPolyline';
 import './DeliveryTrackingMap.css';
 
 // Helper function to calculate Haversine distance
@@ -50,6 +50,7 @@ const DeliveryTrackingMap = ({
   const mapInitializedRef = useRef(false);
   const directionsCacheRef = useRef(new Map()); // Cache for Directions API calls
   const lastRouteRequestRef = useRef({ start: null, end: null, timestamp: 0 });
+  const hasRealtimePolylineRef = useRef(false);
 
   const backendUrl = API_BASE_URL.replace('/api', '');
   const [GOOGLE_MAPS_API_KEY, setGOOGLE_MAPS_API_KEY] = useState("");
@@ -67,6 +68,60 @@ const DeliveryTrackingMap = ({
       socketRef.current.emit('request-current-location', trackingId);
     });
   }, [trackingIdsKey]);
+
+  useEffect(() => {
+    hasRealtimePolylineRef.current = false;
+  }, [trackingIdsKey]);
+
+  const applyPolylineToMap = useCallback((polylinePoints) => {
+    if (!Array.isArray(polylinePoints) || polylinePoints.length < 2) return;
+
+    routePolylinePointsRef.current = polylinePoints;
+
+    if (bikeMarkerRef.current && !animationControllerRef.current) {
+      animationControllerRef.current = new RouteBasedAnimationController(
+        bikeMarkerRef.current,
+        polylinePoints
+      );
+    } else if (animationControllerRef.current) {
+      animationControllerRef.current.updatePolyline(polylinePoints);
+    }
+
+    if (isMapLoaded && mapInstance.current && window.google?.maps) {
+      if (routePolylineRef.current) {
+        routePolylineRef.current.setMap(null);
+      }
+
+      routePolylineRef.current = new window.google.maps.Polyline({
+        path: polylinePoints,
+        geodesic: true,
+        strokeColor: '#10b981',
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+        icons: [{
+          icon: {
+            path: 'M 0,-1 0,1',
+            strokeOpacity: 1,
+            strokeWeight: 2,
+            strokeColor: '#10b981',
+            scale: 4
+          },
+          offset: '0%',
+          repeat: '15px'
+        }],
+        map: mapInstance.current,
+        zIndex: 1
+      });
+    }
+  }, [isMapLoaded]);
+
+  useEffect(() => {
+    if (!isMapLoaded) return;
+    if (!hasRealtimePolylineRef.current) return;
+    if (!routePolylinePointsRef.current || routePolylinePointsRef.current.length < 2) return;
+
+    applyPolylineToMap(routePolylinePointsRef.current);
+  }, [isMapLoaded, applyPolylineToMap]);
 
   // Load Google Maps API key from backend
   useEffect(() => {
@@ -642,15 +697,17 @@ const DeliveryTrackingMap = ({
 
     const handleRouteInitialized = (data) => {
       if (data.points && Array.isArray(data.points) && data.points.length > 0) {
-        routePolylinePointsRef.current = data.points;
-        if (bikeMarkerRef.current && !animationControllerRef.current) {
-          animationControllerRef.current = new RouteBasedAnimationController(
-            bikeMarkerRef.current,
-            data.points
-          );
-        } else if (animationControllerRef.current) {
-          animationControllerRef.current.updatePolyline(data.points);
-        }
+        hasRealtimePolylineRef.current = true;
+        applyPolylineToMap(data.points);
+      }
+    };
+
+    const handleRoutePolyline = (data) => {
+      if (!data?.polyline || typeof data.polyline !== 'string') return;
+      const points = decodePolyline(data.polyline);
+      if (points.length > 1) {
+        hasRealtimePolylineRef.current = true;
+        applyPolylineToMap(points);
       }
     };
 
@@ -671,6 +728,7 @@ const DeliveryTrackingMap = ({
       socketRef.current.on(`location-receive-${trackingId}`, handleRealtimeLocation);
       socketRef.current.on(`current-location-${trackingId}`, handleCurrentLocation);
       socketRef.current.on(`route-initialized-${trackingId}`, handleRouteInitialized);
+      socketRef.current.on(`route-polyline-${trackingId}`, handleRoutePolyline);
     });
 
     socketRef.current.on('order_status_update', (data) => {
@@ -698,12 +756,13 @@ const DeliveryTrackingMap = ({
           socketRef.current.off(`location-receive-${trackingId}`, handleRealtimeLocation);
           socketRef.current.off(`current-location-${trackingId}`, handleCurrentLocation);
           socketRef.current.off(`route-initialized-${trackingId}`, handleRouteInitialized);
+          socketRef.current.off(`route-polyline-${trackingId}`, handleRoutePolyline);
         });
         socketRef.current.off('order_status_update');
         socketRef.current.disconnect();
       }
     };
-  }, [backendUrl, moveBikeSmoothly, trackingIdsKey, requestCurrentLocationForTrackingIds]);
+  }, [backendUrl, moveBikeSmoothly, trackingIdsKey, requestCurrentLocationForTrackingIds, applyPolylineToMap]);
   // Initialize Google Map (only once - prevent re-initialization)
   useEffect(() => {
     if (!mapRef.current || !restaurantCoords || !customerCoords || mapInitializedRef.current) return;
@@ -1114,7 +1173,9 @@ const DeliveryTrackingMap = ({
     const route = getRouteToShow();
     if (route.start && route.end) {
       lastRouteUpdateRef.current = now;
-      drawRoute(route.start, route.end);
+      if (!hasRealtimePolylineRef.current) {
+        drawRoute(route.start, route.end);
+      }
       console.log('🔄 Route updated:', {
         phase: order?.deliveryState?.currentPhase,
         status: order?.deliveryState?.status,

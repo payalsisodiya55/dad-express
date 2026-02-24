@@ -10,6 +10,12 @@ import RestaurantWallet from '../../restaurant/models/RestaurantWallet.js';
 import RestaurantCommission from '../../admin/models/RestaurantCommission.js';
 import AdminCommission from '../../admin/models/AdminCommission.js';
 import { calculateRoute } from '../../order/services/routeCalculationService.js';
+import { generateRoutePolyline } from '../services/locationProcessingService.js';
+import {
+  cacheRouteInRealtime,
+  getCachedRouteFromRealtime,
+  syncActiveOrderRealtime
+} from '../services/firebaseTrackingService.js';
 import mongoose from 'mongoose';
 import winston from 'winston';
 
@@ -660,6 +666,65 @@ export const acceptOrder = asyncHandler(async (req, res) => {
                 Math.sin(dLng/2) * Math.sin(dLng/2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       deliveryDistance = R * c;
+    }
+
+    // Ensure active_orders node is always present in Firebase (even when order was accepted via discover flow)
+    try {
+      const restaurantCoords = updatedOrder.restaurantId?.location?.coordinates?.length >= 2
+        ? {
+            lat: updatedOrder.restaurantId.location.coordinates[1],
+            lng: updatedOrder.restaurantId.location.coordinates[0]
+          }
+        : null;
+
+      const customerCoords = updatedOrder.address?.location?.coordinates?.length >= 2
+        ? {
+            lat: updatedOrder.address.location.coordinates[1],
+            lng: updatedOrder.address.location.coordinates[0]
+          }
+        : null;
+
+      let routePolyline = null;
+      let routeDistanceKm = deliveryDistance > 0 ? Number(deliveryDistance.toFixed(3)) : null;
+      let routeDurationMin = null;
+
+      if (restaurantCoords && customerCoords) {
+        const cachedRoute = await getCachedRouteFromRealtime(restaurantCoords, customerCoords);
+        if (cachedRoute?.polyline) {
+          routePolyline = cachedRoute.polyline;
+          if (cachedRoute.distanceKm !== null) routeDistanceKm = cachedRoute.distanceKm;
+          if (cachedRoute.durationMin !== null) routeDurationMin = cachedRoute.durationMin;
+        } else {
+          const generatedRoute = await generateRoutePolyline(restaurantCoords, null, customerCoords);
+          if (generatedRoute?.polyline) {
+            routePolyline = generatedRoute.polyline;
+            routeDistanceKm = Number(((generatedRoute.totalDistance || 0) / 1000).toFixed(3));
+            routeDurationMin = Number(((generatedRoute.duration || 0) / 60).toFixed(3));
+
+            await cacheRouteInRealtime(restaurantCoords, customerCoords, {
+              polyline: routePolyline,
+              distanceKm: routeDistanceKm,
+              durationMin: routeDurationMin
+            });
+          }
+        }
+      }
+
+      await syncActiveOrderRealtime({
+        orderId: updatedOrder.orderId || updatedOrder._id?.toString(),
+        boyId: delivery._id?.toString(),
+        boyLat: deliveryLat,
+        boyLng: deliveryLng,
+        status: 'accepted',
+        polyline: routePolyline,
+        restaurant: restaurantCoords,
+        customer: customerCoords,
+        distanceKm: routeDistanceKm,
+        durationMin: routeDurationMin,
+        createdAt: updatedOrder.createdAt ? new Date(updatedOrder.createdAt).getTime() : Date.now()
+      });
+    } catch (firebaseSyncError) {
+      console.warn(`⚠️ Firebase active_orders sync failed during acceptOrder: ${firebaseSyncError.message}`);
     }
 
     // Calculate estimated earnings based on delivery distance

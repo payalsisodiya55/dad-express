@@ -5,6 +5,7 @@ import Zone from '../../admin/models/Zone.js';
 import { validate } from '../../../shared/middleware/validate.js';
 import Joi from 'joi';
 import winston from 'winston';
+import { syncDeliveryPartnerRealtime } from '../services/firebaseTrackingService.js';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -94,6 +95,20 @@ export const updateLocation = asyncHandler(async (req, res) => {
     }
 
     const currentLocation = updatedDelivery.availability?.currentLocation;
+    const lat = currentLocation?.coordinates?.[1];
+    const lng = currentLocation?.coordinates?.[0];
+
+    // Non-blocking Firebase sync for real-time tracking and nearest-rider lookup
+    syncDeliveryPartnerRealtime({
+      deliveryPartnerId: updatedDelivery._id,
+      name: updatedDelivery.name || '',
+      phone: updatedDelivery.phone || '',
+      lat,
+      lng,
+      isOnline: updatedDelivery.availability?.isOnline || false
+    }).catch((syncError) => {
+      logger.warn(`Firebase delivery_boys sync failed: ${syncError.message}`);
+    });
 
     return successResponse(res, 200, 'Status updated successfully', {
       location: currentLocation ? {
@@ -225,4 +240,3 @@ export const getZonesInRadius = asyncHandler(async (req, res) => {
     return errorResponse(res, 500, 'Failed to fetch zones');
   }
 });
-

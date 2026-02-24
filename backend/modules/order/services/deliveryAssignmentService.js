@@ -3,6 +3,13 @@ import Order from '../models/Order.js';
 import Zone from '../../admin/models/Zone.js';
 import Restaurant from '../../restaurant/models/Restaurant.js';
 import mongoose from 'mongoose';
+import { generateRoutePolyline } from '../../delivery/services/locationProcessingService.js';
+import {
+  cacheRouteInRealtime,
+  findNearestOnlineDeliveryBoyFromRealtime,
+  getCachedRouteFromRealtime,
+  syncActiveOrderRealtime
+} from '../../delivery/services/firebaseTrackingService.js';
 
 /**
  * Calculate distance between two coordinates using Haversine formula
@@ -149,6 +156,35 @@ export async function findNearestDeliveryBoys(restaurantLat, restaurantLng, rest
 export async function findNearestDeliveryBoy(restaurantLat, restaurantLng, restaurantId = null, maxDistance = 50, excludeIds = []) {
   try {
     console.log(`🔍 Searching for nearest delivery partner near restaurant: ${restaurantLat}, ${restaurantLng} (Restaurant ID: ${restaurantId})`);
+
+    // Try Firebase Realtime Database first for nearest rider selection
+    try {
+      const realtimeNearest = await findNearestOnlineDeliveryBoyFromRealtime(
+        restaurantLat,
+        restaurantLng,
+        maxDistance,
+        excludeIds
+      );
+
+      if (realtimeNearest?.deliveryPartnerId) {
+        const partnerDoc = await Delivery.findById(realtimeNearest.deliveryPartnerId)
+          .select('_id name phone')
+          .lean();
+
+        if (partnerDoc) {
+          console.log(`✅ Found nearest delivery partner from Firebase: ${partnerDoc.name} (${realtimeNearest.distance.toFixed(2)}km)`);
+          return {
+            deliveryPartnerId: partnerDoc._id.toString(),
+            name: partnerDoc.name,
+            phone: partnerDoc.phone,
+            distance: realtimeNearest.distance,
+            location: realtimeNearest.location
+          };
+        }
+      }
+    } catch (firebaseNearestError) {
+      console.warn(`⚠️ Firebase nearest lookup failed, falling back to Mongo: ${firebaseNearestError.message}`);
+    }
     
     // Step 1: Find zone for restaurant (if restaurantId provided)
     let zone = null;
@@ -377,6 +413,64 @@ export async function assignOrderToDeliveryBoy(order, restaurantLat, restaurantL
     
     await order.save();
 
+    // Persist active order tracking in Firebase so clients can reuse the same polyline
+    try {
+      const customerCoords = order.address?.location?.coordinates?.length >= 2
+        ? { lat: order.address.location.coordinates[1], lng: order.address.location.coordinates[0] }
+        : null;
+      const restaurantCoords = (typeof restaurantLat === 'number' && typeof restaurantLng === 'number')
+        ? { lat: restaurantLat, lng: restaurantLng }
+        : null;
+
+      let polyline = null;
+      let distanceKm = null;
+      let durationMin = null;
+      if (customerCoords && restaurantCoords) {
+        const cachedRoute = await getCachedRouteFromRealtime(restaurantCoords, customerCoords);
+
+        if (cachedRoute?.polyline) {
+          polyline = cachedRoute.polyline;
+          distanceKm = cachedRoute.distanceKm;
+          durationMin = cachedRoute.durationMin;
+          console.log(`✅ Using Firebase route_cache for order ${order.orderId}`);
+        } else {
+          const route = await generateRoutePolyline(
+            nearestDeliveryBoy.location || restaurantCoords,
+            restaurantCoords,
+            customerCoords
+          );
+
+          if (route?.polyline) {
+            polyline = route.polyline;
+            distanceKm = Number(((route.totalDistance || 0) / 1000).toFixed(3));
+            durationMin = Number(((route.duration || 0) / 60).toFixed(3));
+
+            await cacheRouteInRealtime(restaurantCoords, customerCoords, {
+              polyline,
+              distanceKm,
+              durationMin
+            });
+          }
+        }
+      }
+
+      await syncActiveOrderRealtime({
+        orderId: order.orderId || order._id?.toString(),
+        boyId: nearestDeliveryBoy.deliveryPartnerId,
+        boyLat: nearestDeliveryBoy.location?.latitude,
+        boyLng: nearestDeliveryBoy.location?.longitude,
+        status: 'assigned',
+        polyline,
+        restaurant: restaurantCoords,
+        customer: customerCoords,
+        distanceKm,
+        durationMin,
+        createdAt: Date.now()
+      });
+    } catch (firebaseSyncError) {
+      console.warn(`⚠️ Failed to sync assigned order to Firebase: ${firebaseSyncError.message}`);
+    }
+
     // Trigger ETA recalculation for rider assigned event
     try {
       const etaEventService = (await import('./etaEventService.js')).default;
@@ -401,4 +495,3 @@ export async function assignOrderToDeliveryBoy(order, restaurantLat, restaurantL
     throw error;
   }
 }
-

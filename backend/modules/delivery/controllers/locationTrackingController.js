@@ -13,6 +13,7 @@ import {
   clearRouteCache
 } from '../services/locationProcessingService.js';
 import Order from '../../order/models/Order.js';
+import { syncActiveOrderRealtime, syncDeliveryPartnerRealtime } from '../services/firebaseTrackingService.js';
 
 /**
  * Receive GPS update from delivery app
@@ -79,6 +80,26 @@ export const receiveLocationUpdate = asyncHandler(async (req, res) => {
         }
       }
     );
+
+    syncActiveOrderRealtime({
+      orderId,
+      boyId: deliveryBoyId,
+      boyLat: processedLocation.lat,
+      boyLng: processedLocation.lng,
+      status: 'on_the_way'
+    }).catch((syncError) => {
+      console.warn(`Firebase active_orders sync failed: ${syncError.message}`);
+    });
+
+    syncDeliveryPartnerRealtime({
+      deliveryPartnerId: deliveryBoyId,
+      lat: processedLocation.lat,
+      lng: processedLocation.lng,
+      isOnline: true,
+      activeOrderId: orderId
+    }).catch((syncError) => {
+      console.warn(`Firebase delivery_boys sync failed: ${syncError.message}`);
+    });
     
     // Broadcast via WebSocket (handled by socket.io in server.js)
     const io = req.app.get('io');
@@ -167,6 +188,17 @@ export const initializeRoute = asyncHandler(async (req, res) => {
     
     // Cache route
     cacheRoutePolyline(orderId, route);
+
+    await syncActiveOrderRealtime({
+      orderId,
+      boyId: order.deliveryPartnerId || null,
+      boyLat: riderCoords.lat,
+      boyLng: riderCoords.lng,
+      status: 'assigned',
+      polyline: route.polyline,
+      restaurant: restaurantCoords,
+      customer: customerCoords
+    });
     
     // Broadcast route to connected clients
     const io = req.app.get('io');
@@ -215,4 +247,3 @@ export const clearLocationData = asyncHandler(async (req, res) => {
     return errorResponse(res, 500, error.message || 'Failed to clear location data');
   }
 });
-
