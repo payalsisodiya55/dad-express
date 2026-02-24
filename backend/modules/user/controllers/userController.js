@@ -4,6 +4,7 @@ import User from '../../auth/models/User.js';
 import { uploadToCloudinary } from '../../../shared/utils/cloudinaryService.js';
 import axios from 'axios';
 import winston from 'winston';
+import { syncUserRealtime } from '../../delivery/services/firebaseTrackingService.js';
 
 const logger = winston.createLogger({
   level: 'info',
@@ -252,6 +253,21 @@ export const updateUserLocation = asyncHandler(async (req, res) => {
 
     // Save to database
     await user.save();
+
+    // Mirror user live location to Firebase Realtime Database (non-blocking)
+    syncUserRealtime({
+      userId: user._id?.toString(),
+      lat: latNum,
+      lng: lngNum,
+      address: locationUpdate.address,
+      area: locationUpdate.area,
+      city: locationUpdate.city,
+      state: locationUpdate.state,
+      formattedAddress: locationUpdate.formattedAddress,
+      accuracy: locationUpdate.accuracy
+    }).catch((syncError) => {
+      logger.warn(`Firebase users sync failed: ${syncError.message}`);
+    });
 
     logger.info(`User live location updated: ${user._id}`, {
       latitude: latNum,
@@ -515,4 +531,3 @@ export const deleteUserAddress = asyncHandler(async (req, res) => {
     return errorResponse(res, 500, 'Failed to delete address');
   }
 });
-

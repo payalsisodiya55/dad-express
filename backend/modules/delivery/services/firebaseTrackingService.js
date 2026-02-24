@@ -227,3 +227,43 @@ export async function findNearestOnlineDeliveryBoyFromRealtime(restaurantLat, re
 
   return winner;
 }
+
+export async function syncUserRealtime({
+  userId,
+  lat,
+  lng,
+  address = '',
+  area = '',
+  city = '',
+  state = '',
+  formattedAddress = '',
+  accuracy = null
+}) {
+  if (!isFirebaseRealtimeAvailable()) {
+    console.warn('⚠️ Firebase Realtime Database not available');
+    return false;
+  }
+
+  const id = toSafeKey(userId);
+  const latitude = toNumber(lat);
+  const longitude = toNumber(lng);
+  if (!id || latitude === null || longitude === null) return false;
+
+  const db = getFirebaseRealtimeDb();
+  const payload = {
+    lat: latitude,
+    lng: longitude,
+    address: address || '',
+    area: area || '',
+    city: city || '',
+    state: state || '',
+    formatted_address: formattedAddress || '',
+    last_updated: Date.now()
+  };
+
+  const acc = toNumber(accuracy);
+  if (acc !== null) payload.accuracy = acc;
+
+  await db.ref(`users/${id}`).update(payload);
+  return true;
+}
